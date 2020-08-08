@@ -6,8 +6,10 @@ const md5 = require('md5');
 const app = express();
 
 const PORT = 80;
+const STALE_CHECK_INTERVAL = 3600000;   // every hour.
 
 app.use(express.static(path.join(__dirname, 'public')));
+deleteStaleImages();
 
 app.get('/', (req, res) => {
     if (req.query.hasOwnProperty('url')) {
@@ -61,4 +63,9 @@ async function downloadImage (url, path) {
     else {
         return new Promise((resolve) => resolve());
     }
+}
+
+function deleteStaleImages() {
+    setTimeout(deleteStaleImages, STALE_CHECK_INTERVAL);
+    console.log("running stale check");
 }
