@@ -9,4 +9,5 @@ Requires Node.js
 
 ## Usage
 - `npm install`
+- `node server.js`
 - `http://localhost/?url=https://link.to/image.jpg`
