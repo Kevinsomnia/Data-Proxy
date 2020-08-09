@@ -45,6 +45,7 @@ app.get('/', (req, res) => {
             });
 
             reader.on('end', () => {
+                res.header('Cache-Control', 'public, max-age=31557600');
                 res.header('Content-Type', 'image/jpeg');
                 let finalBuffer = Buffer.concat(tmpBuf);
                 const img = sharp(finalBuffer);
