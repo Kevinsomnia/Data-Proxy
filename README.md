@@ -1,5 +1,5 @@
 ## Data Proxy
-This acts as a Node.js proxy server that automatically rehosts and forwards data to the client.
+This acts as a Node.js proxy server that automatically rehosts and forwards data to the client. Requested file data is stored in `/public/downloads`.
 
 Requires Node.js
 
