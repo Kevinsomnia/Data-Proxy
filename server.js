@@ -4,6 +4,7 @@ const path = require('path');
 const axios = require('axios');
 const md5 = require('md5');
 const sharp = require('sharp');
+const { strategy } = require('sharp');
 const app = express();
 
 const PORT = 80;
@@ -20,55 +21,66 @@ app.get('/', (req, res) => {
 
     (async () => {
         let hash = md5(url);
-        let filename = `${hash}.jpg`
-        let downloadPath = path.join(__dirname, `public/downloads/${filename}`);
+        let extension = getFileExtension(url).toLowerCase();
+        let downloadPath = path.join(__dirname, `public/downloads/${hash}`);
 
-        await downloadImage(url, downloadPath).then(() => {
-            let maxRes = tryParseInt(req.query['maxRes'], 16000);
-            let targetQuality = tryParseInt(req.query['quality'], 80);
-
-            if (targetQuality < 1 || targetQuality > 100) {
-                returnError(url, res, 400);
-                return;
-            }
-
-            let tmpBuf = [];
-            const reader = fs.createReadStream(downloadPath);
-
-            reader.on('data', (d) => {
-                tmpBuf.push(d);
-            });
-
-            reader.on('error', (err) => {
-                console.log(`Reader error: ${err}`);
-                returnError(url, res, 500);
-            });
-
-            reader.on('end', () => {
-                res.header('Cache-Control', 'public, max-age=31557600');
-                res.header('Content-Type', 'image/jpeg');
-                let finalBuffer = Buffer.concat(tmpBuf);
-                const img = sharp(finalBuffer);
-
-                img.metadata().then((info) => {
-                    if (info.width > maxRes || info.height > maxRes) {
-                        // Downsample the image
-                        img.resize(maxRes, maxRes, { fit: 'inside' });
+        switch (extension) {
+            case 'jpg':
+            case 'png':
+                await downloadImage(url, downloadPath).then(() => {
+                    let maxRes = tryParseInt(req.query['maxRes'], 16000);
+                    let targetQuality = tryParseInt(req.query['quality'], 80);
+        
+                    if (targetQuality < 1 || targetQuality > 100) {
+                        returnError(url, res, 400);
+                        return;
                     }
+        
+                    let tmpBuf = [];
+                    const reader = fs.createReadStream(downloadPath);
+        
+                    reader.on('data', (d) => {
+                        tmpBuf.push(d);
+                    });
+        
+                    reader.on('error', (err) => {
+                        console.log(`Reader error: ${err}`);
+                        returnError(url, res, 500);
+                    });
+        
+                    reader.on('end', () => {
+                        res.header('Cache-Control', 'public, max-age=31557600');
+                        res.header('Content-Type', 'image/jpeg');
+                        let finalBuffer = Buffer.concat(tmpBuf);
+                        const img = sharp(finalBuffer);
+        
+                        img.metadata().then((info) => {
+                            if (info.width > maxRes || info.height > maxRes) {
+                                // Downsample the image
+                                img.resize(maxRes, maxRes, { fit: 'inside' });
+                            }
+                            
+                            if (extension == 'png') {
+                                img.png();
+                            }
+                            else {
+                                img.jpeg({ quality: targetQuality });
+                            }
 
-                    img.jpeg({ quality: targetQuality });
-                    img.pipe(res);
-                    console.log(`Finished: ${url} => ${filename}`);
-                })
-                .catch((err) => {
-                    console.log(err);
+                            img.pipe(res);
+                            console.log(`Finished: ${url} => ${hash}`);
+                        })
+                        .catch((err) => {
+                            console.log(err);
+                            returnError(url, res, 500);
+                        });
+        
+                    });
+                }).catch(() => {
                     returnError(url, res, 500);
                 });
-
-            });
-        }).catch(() => {
-            returnError(url, res, 500);
-        });
+                break;
+        }
     })();
 })
 
@@ -113,4 +125,9 @@ function returnError(url, res, code) {
 function tryParseInt(value, defaultValue) {
     let val = parseInt(value);
     return (!isNaN(val)) ? val : defaultValue;
+}
+
+function getFileExtension(str) {
+    // Efficient way to get file extension: https://stackoverflow.com/a/12900504
+    return str.slice((str.lastIndexOf('.') - 1 >>> 0) + 2);
 }

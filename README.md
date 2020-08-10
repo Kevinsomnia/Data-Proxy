@@ -1,14 +1,16 @@
 ## Data Proxy
 This acts as a Node.js proxy server that automatically rehosts and forwards data to the client. Requested file data is stored in `/public/downloads`.
 
+Features:
+- URLs to PNG files will respond with PNG format, otherwise it will use JPG for all other formats.
+
 Requires Node.js
 
 ## Limitations
 - Only HTTP server support.
-- Only returns JPEG images.
+- Only tested with JPGs and transparent PNGs. Other image file types may or may not work.
 
 ## Roadmap
-- Support for common image types other than JPG. PNG transparency support.
 - Support for binary data such as audio files.
 - Automatically remove stale files (default to 24 hours).
 
@@ -23,8 +25,9 @@ Requires Node.js
 - Optional parameters:
   - `maxRes`: Integer - Takes in a positive integer that represents the maximum resolution. If either dimension of the image is higher than this value, the response will be downsampled to this value while preserving it's aspect ratio.
     - Default: `16000`
-  - `quality`: Integer - Takes in a integer within the range [1, 100] which denotes the compression quality of the image. Lower values will result in lower quality images, but much smaller file sizes.
+  - `quality`: Integer - Takes in a integer within the range [1, 100] which denotes the compression quality of the image. Lower values will result in lower quality images, but much smaller file sizes. This option is only applicable to non-PNG files.
     - Default: `80`
 
-Example:
+Examples:
 - `http://127.0.0.1/?url=https://link.to/image.jpg&maxRes=1920&quality=75`
+- `http://127.0.0.1/?url=https://link.to/transparent.png`
