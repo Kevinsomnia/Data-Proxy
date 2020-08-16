@@ -20,73 +20,19 @@ app.get('/', (req, res) => {
     }
 
     (async () => {
-        let hash = md5(url);
         let extension = getFileExtension(url).toLowerCase();
-        let downloadPath = path.join(__dirname, `public/downloads/${hash}`);
+        let downloadPath = path.join(__dirname, `public/downloads/${md5(url)}`);
 
-        switch (extension) {
-            case 'jpg':
-            case 'png':
-                await downloadImage(url, downloadPath).then(() => {
-                    let maxRes = tryParseInt(req.query['maxRes'], 16000);
-                    let targetQuality = tryParseInt(req.query['quality'], 80);
-                    let enforceJPEG = req.query.hasOwnProperty('enforceJPEG');
-                    console.log(enforceJPEG);
-        
-                    if (targetQuality < 1 || targetQuality > 100) {
-                        returnError(url, res, 400);
-                        return;
-                    }
-        
-                    let tmpBuf = [];
-                    const reader = fs.createReadStream(downloadPath);
-        
-                    reader.on('data', (d) => {
-                        tmpBuf.push(d);
-                    });
-        
-                    reader.on('error', (err) => {
-                        console.log(`Reader error: ${err}`);
-                        returnError(url, res, 500);
-                    });
-        
-                    reader.on('end', () => {
-                        res.header('Cache-Control', 'public, max-age=31557600');
-                        let finalBuffer = Buffer.concat(tmpBuf);
-                        const img = sharp(finalBuffer);
-        
-                        img.metadata().then((info) => {
-                            if (info.width > maxRes || info.height > maxRes) {
-                                // Downsample the image
-                                img.resize(maxRes, maxRes, { fit: 'inside' });
-                            }
-                            
-                            if (enforceJPEG || extension == 'jpg') {
-                                res.header('Content-Type', 'image/jpeg');
-                                img.jpeg({ quality: targetQuality });
-                            }
-                            else if (extension == 'png') {
-                                res.header('Content-Type', 'image/png');
-                                img.png();
-                            }
-                            else {
-                                returnError(url, res, 500);
-                                return;
-                            }
-
-                            img.pipe(res);
-                            console.log(`Finished: ${url} => ${hash}`);
-                        })
-                        .catch((err) => {
-                            console.log(err);
-                            returnError(url, res, 500);
-                        });
-        
-                    });
-                }).catch(() => {
-                    returnError(url, res, 500);
-                });
-                break;
+        if (isSupportedImageExtension(extension)) {
+            await downloadImage(url, downloadPath).then(() => {
+                handleImageResponse(url, req, res, extension, downloadPath);
+            }).catch(() => {
+                returnError(url, res, 500);
+            });
+        }
+        else {
+            // Unsupported file type.
+            returnError(url, res, 400);
         }
     })();
 })
@@ -94,6 +40,62 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Started server on port ${PORT}`);
 });
+
+function handleImageResponse(url, req, res, extension, downloadPath) {
+    let maxRes = tryParseInt(req.query['maxRes'], 16000);
+    let targetQuality = tryParseInt(req.query['quality'], 80);
+    let enforceJPEG = req.query.hasOwnProperty('enforceJPEG');
+
+    if (targetQuality < 1 || targetQuality > 100) {
+        returnError(url, res, 400);
+        return;
+    }
+
+    let tmpBuf = [];
+    const reader = fs.createReadStream(downloadPath);
+
+    reader.on('data', (d) => {
+        tmpBuf.push(d);
+    });
+
+    reader.on('error', (err) => {
+        console.log(`Reader error: ${err}`);
+        returnError(url, res, 500);
+    });
+
+    reader.on('end', () => {
+        res.header('Cache-Control', 'public, max-age=31557600');
+        let finalBuffer = Buffer.concat(tmpBuf);
+        const img = sharp(finalBuffer);
+
+        img.metadata().then((info) => {
+            if (info.width > maxRes || info.height > maxRes) {
+                // Downsample the image
+                img.resize(maxRes, maxRes, { fit: 'inside' });
+            }
+            
+            if (enforceJPEG || extension == 'jpg') {
+                res.header('Content-Type', 'image/jpeg');
+                img.jpeg({ quality: targetQuality });
+            }
+            else if (extension == 'png') {
+                res.header('Content-Type', 'image/png');
+                img.png();
+            }
+            else {
+                returnError(url, res, 500);
+                return;
+            }
+
+            img.pipe(res);
+            console.log(`Finished: ${url}`);
+        })
+        .catch((err) => {
+            console.log(err);
+            returnError(url, res, 500);
+        });
+    });
+}
 
 async function downloadImage(url, path) {
     if (!fs.existsSync(path)) {
@@ -125,7 +127,7 @@ async function downloadImage(url, path) {
 }
 
 function returnError(url, res, code) {
-    console.log(`Error: ${url} failed to load`);
+    console.log(`Error: ${url} failed to load (code ${code})`);
     res.status(code).send();
 }
 
@@ -137,4 +139,9 @@ function tryParseInt(value, defaultValue) {
 function getFileExtension(str) {
     // Efficient way to get file extension: https://stackoverflow.com/a/12900504
     return str.slice((str.lastIndexOf('.') - 1 >>> 0) + 2);
+}
+
+function isSupportedImageExtension(ext) {
+    // Extension should be lowercase.
+    return (ext == 'png' || ext == 'jpg');
 }
