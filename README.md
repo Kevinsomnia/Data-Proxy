@@ -22,12 +22,13 @@ Requires Node.js
 ## Usage
 - Required parameters:
   - `url`: String - Takes in an escaped URL to the target data endpoint.
-- Optional parameters:
+- Image parameters (optional):
   - `maxRes`: Integer - Takes in a positive integer that represents the maximum resolution. If either dimension of the image is higher than this value, the response will be downsampled to this value while preserving it's aspect ratio.
     - Default: `16000`
   - `quality`: Integer - Takes in a integer within the range [1, 100] which denotes the compression quality of the image. Lower values will result in lower quality images, but much smaller file sizes. This option is only applicable to non-PNG files.
     - Default: `80`
+  - `enforceJPEG`: Key - Doesn't take a value. If present in the URL, it will enforce returning a JPEG response regardless of file type.
 
 Examples:
 - `http://127.0.0.1/?url=https://link.to/image.jpg&maxRes=1920&quality=75`
-- `http://127.0.0.1/?url=https://link.to/transparent.png`
+- `http://127.0.0.1/?url=https://link.to/transparent.png&enforceJPEG`

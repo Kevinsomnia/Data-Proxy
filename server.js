@@ -30,6 +30,8 @@ app.get('/', (req, res) => {
                 await downloadImage(url, downloadPath).then(() => {
                     let maxRes = tryParseInt(req.query['maxRes'], 16000);
                     let targetQuality = tryParseInt(req.query['quality'], 80);
+                    let enforceJPEG = req.query.hasOwnProperty('enforceJPEG');
+                    console.log(enforceJPEG);
         
                     if (targetQuality < 1 || targetQuality > 100) {
                         returnError(url, res, 400);
@@ -59,13 +61,17 @@ app.get('/', (req, res) => {
                                 img.resize(maxRes, maxRes, { fit: 'inside' });
                             }
                             
-                            if (extension == 'png') {
+                            if (enforceJPEG || extension == 'jpg') {
+                                res.header('Content-Type', 'image/jpeg');
+                                img.jpeg({ quality: targetQuality });
+                            }
+                            else if (extension == 'png') {
                                 res.header('Content-Type', 'image/png');
                                 img.png();
                             }
                             else {
-                                res.header('Content-Type', 'image/jpeg');
-                                img.jpeg({ quality: targetQuality });
+                                returnError(url, res, 500);
+                                return;
                             }
 
                             img.pipe(res);
