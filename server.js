@@ -9,6 +9,14 @@ const app = express();
 
 const PORT = 80;
 
+// Disable image operation caching for lower memory footprint.
+sharp.cache(false);
+
+// Auto create the public/downloads folder used for cache.
+if (!fs.existsSync(path.join(__dirname, 'public', 'downloads'))) {
+    fs.mkdirSync(path.join(__dirname, 'public', 'downloads'), { recursive: true });
+}
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
@@ -26,7 +34,8 @@ app.get('/', (req, res) => {
         if (isSupportedImageExtension(extension)) {
             await downloadImage(url, downloadPath).then(() => {
                 handleImageResponse(url, req, res, extension, downloadPath);
-            }).catch(() => {
+            }).catch((e) => {
+                console.log(e);
                 returnError(url, res, 500);
             });
         }
